@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { NavController, Platform } from 'ionic-angular';
 import { BLE} from '@ionic-native/ble';
+import { PeripheralPage} from "../peripheral/peripheral";
 
 @Component({
   selector: 'page-home',
@@ -9,6 +10,9 @@ import { BLE} from '@ionic-native/ble';
 export class HomePage {
 
   constructor(public navCtrl: NavController, private ble: BLE, private plt: Platform) {
+
+  }
+  scan() {
       // 1. 利用可能になったかをチェックする
       this.plt.ready().then((readySource) => {
           // 2. 接続対象のデバイスをスキャンする
@@ -19,6 +23,10 @@ export class HomePage {
               });
           });
       });
+  }
+
+  goPeripheral() {
+      this.navCtrl.push( PeripheralPage);
   }
 
 }

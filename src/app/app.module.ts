@@ -7,6 +7,7 @@ import { StatusBar } from '@ionic-native/status-bar';
 import { MyApp } from './app.component';
 import { HomePage } from '../pages/home/home';
 import { BLE} from '@ionic-native/ble';
+import { PeripheralPageModule} from "../pages/peripheral/peripheral.module";
 
 @NgModule({
   declarations: [
@@ -14,7 +15,7 @@ import { BLE} from '@ionic-native/ble';
     HomePage
   ],
   imports: [
-    BrowserModule,
+    BrowserModule,PeripheralPageModule,
     IonicModule.forRoot(MyApp)
   ],
   bootstrap: [IonicApp],
