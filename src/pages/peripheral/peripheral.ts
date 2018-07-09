@@ -1,5 +1,6 @@
 import { Component, Injectable, ChangeDetectorRef } from '@angular/core';
 import { IonicPage, NavController, NavParams } from 'ionic-angular';
+import {BluetoothServiceProvider} from "../../providers/bluetooth-service/bluetooth-service";
 
 /**
  * Generated class for the PeripheralPage page.
@@ -16,7 +17,8 @@ import { IonicPage, NavController, NavParams } from 'ionic-angular';
 export class PeripheralPage {
   constructor(
       public navCtrl: NavController,
-      public navParams: NavParams
+      public navParams: NavParams,
+      private bluetoothService: BluetoothServiceProvider
 
   ) {}
   /** セントラル端末から受信したテキスト */
@@ -29,7 +31,7 @@ export class PeripheralPage {
   message: string = '「ペリフェラル通信開始」ボタンを押してください';
     private changeDetectorRef: ChangeDetectorRef;
     private peripheralService: PeripheralService;
-    private bluetoothService: BluetoothService;
+
 
   /** 「ペリフェラル通信開始」ボタン押下時の処理 */
   execPeripheral() {
@@ -201,20 +203,6 @@ export class PeripheralService {
            );
      });
    }
-}
-@Injectable()
-export class BluetoothService {
-  constructor(
-      public windowRefService: WindowRefService
-  ){}
-  encodeText(str: string): string {
-    const encodedString = btoa(this.windowRefService.nativeWindow.unescape(encodeURIComponent(str)));
-    return encodedString;
-  }
-  decodeText(encodedString: string): string {
-    const str = decodeURIComponent(this.windowRefService.nativeWindow.escape(atob(encodedString)));
-    return str;
-  }
 }
 @Injectable()
 export class WindowRefService {
