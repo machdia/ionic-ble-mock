@@ -1,4 +1,4 @@
-import { Component, Injectable } from '@angular/core';
+import { Component, Injectable, ChangeDetectorRef } from '@angular/core';
 import { IonicPage, NavController, NavParams } from 'ionic-angular';
 
 /**
@@ -14,6 +14,11 @@ import { IonicPage, NavController, NavParams } from 'ionic-angular';
   templateUrl: 'peripheral.html',
 })
 export class PeripheralPage {
+  constructor(
+      public navCtrl: NavController,
+      public navParams: NavParams
+
+  ) {}
   /** セントラル端末から受信したテキスト */
   pReceivedText: string = '';
 
@@ -22,14 +27,98 @@ export class PeripheralPage {
 
   /** 動作の進捗を示すメッセージ表示欄 : デフォルト値を設定しておく */
   message: string = '「ペリフェラル通信開始」ボタンを押してください';
+    private changeDetectorRef: ChangeDetectorRef;
+    private peripheralService: PeripheralService;
+    private bluetoothService: BluetoothService;
 
   /** 「ペリフェラル通信開始」ボタン押下時の処理 */
   execPeripheral() {
-    // TODO : これから実装していく
+      this.updateMessage('ペリフェラル通信開始');
+
+      let waitTimer;
+
+      this.peripheralService.initializePeripheral((result) => {
+        //read https://github.com/randdusing/cordova-plugin-bluetoothle#success-35
+        if(result.status === 'writeRequested') {
+          this.updateMessage('write 要求を受信しました');
+          this.pReceivedText = this.bluetoothService.decodeText(result.value);
+        } else if(result.status === 'readRequested') {
+          this.updateMessage('read 要求を受信しました');
+              // 処理中断用のタイマーを解除する
+            if(waitTimer) {
+              clearTimeout(waitTimer);
+            }
+            this.peripheralService.respond({
+                requestId: result.requestId,
+                value: this.bluetoothService.encodeText(this.pReceivedText)
+            }).then(() => {
+              this.destroyPeripheral();
+            }).catch(() => {
+              this.destroyPeripheral();
+            });
+        }
+        else {
+          this.updateMessage(`次のイベントが発生しました : ${result.status}`);
+        }
+        this.changeDetectorRef.detectChanges();
+      }).then(() => {
+        this.updateMessage('ペリフェラル初期化完了・サービス追加開始');
+        return this.peripheralService.addService({
+            service: bluetoothConstants.serviceUuid,
+            characteristics:[{
+                uuid: bluetoothConstants.characteristicUuid,
+                permissions: {
+                  read: true,
+                  write: true
+                },
+                properties: {
+                  read: true,
+                  writeWithoutResponse: true,
+                  write: true,
+                  notify: true,
+                  indicate: true
+                }
+            }]
+        });
+      }).then(() => {
+        this.updateMessage('サービス追加完了・アドバタイジング開始');
+        return this.peripheralService.startAdvertising( {
+            services: [bluetoothConstants.serviceUuid], //for iOS
+            service: bluetoothConstants.serviceUuid, //for android
+            name: bluetoothConstants.advertisingName
+        } );
+      }).then(() => {
+        this.updateMessage('アドバタイジング開始・セントラル端末の通信待機中…');
+        /*waitTimer - setTimeout(() => {
+          this.updateMessage('10秒間応答がなかったため中断します');
+          this.destroyPeripheral();
+          }, 10 * 1000);*/
+      }).catch((error) => {
+        this.updateMessage(`ペリフェラル通信開始処理に失敗しました : ${error}`);
+      });
+  }
+  private updateMessage(message: string) {
+    this.message = message;
+    this.changeDetectorRef.detectChanges();
+  }
+  private destroyPeripheral() {
+    this.updateMessage('終了処理開始 : アドバタイジング終了');
+    this.peripheralService.stopAdvertising()
+        .then(() => {
+          this.updateMessage('アドバタイジング終了完了・サービス終了開始');
+          return this.peripheralService.removeAllServices();
+          })
+        .then(() => {
+          // 全て正常終了
+            this.updateMessage('サービス終了完了・ペリフェラル通信の終了処理が完了');
+        })
+        .catch((error) => {
+          // どこかの処理で失敗したらエラーメッセージを表示
+            this.updateMessage(`ペリフェラル通信終了処理に失敗しました : ${error}`);
+        });
   }
 
-  constructor(public navCtrl: NavController, public navParams: NavParams) {
-  }
+
 
   ionViewDidLoad() {
     console.log('ionViewDidLoad PeripheralPage');
@@ -112,4 +201,27 @@ export class PeripheralService {
            );
      });
    }
+}
+@Injectable()
+export class BluetoothService {
+  constructor(
+      public windowRefService: WindowRefService
+  ){}
+  encodeText(str: string): string {
+    const encodedString = btoa(this.windowRefService.nativeWindow.unescape(encodeURIComponent(str)));
+    return encodedString;
+  }
+  decodeText(encodedString: string): string {
+    const str = decodeURIComponent(this.windowRefService.nativeWindow.escape(atob(encodedString)));
+    return str;
+  }
+}
+@Injectable()
+export class WindowRefService {
+    get nativeWindow(): any {
+        return _window();
+    }
+}
+function _window(): any {
+    return window;
 }
